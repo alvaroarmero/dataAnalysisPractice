@@ -1,0 +1,107 @@
+---
+title: "Análisis de alumnado"
+author: "Álvaro Armero"
+date: "12 de marzo de 2016"
+output: html_document
+---
+#Establecemos espacio de trabajo y descargamos los datos
+
+```{r}
+setwd("/Volumes/HDD/alvaroarmero/Documents/Master_BigData _UPSA/dataAnalysisPractice")
+if (!file.exists("students")) 
+{
+  dir.create("students")
+  fileURL <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00320/student.zip"
+  download.file(fileURL,destfile="./students/student.zip", method="curl")
+  unzip("students/student.zip", exdir="./students/")
+  list.files("./students")
+}
+
+library(knitr)
+```
+
+#Cargamos los estudiantes de portugués y de español
+```{r}
+studentMat <- read.table("./students/student-mat.csv", 
+                         row.names=NULL, sep=";", header=TRUE)
+studentPor <- read.table("./students/student-por.csv", 
+                         row.names=NULL, sep=";", header=TRUE)
+#kable(studentPor) Para mostrar todos
+kable(head(studentMat[,1:5]))
+names(studentMat)
+```
+
+#Limpieza de los datos
+```{r}
+names(studentMat) <- tolower(names(studentMat))
+names(studentPor) <- tolower(names(studentPor))
+studentMat$mjob <- gsub("_", "", studentMat$mjob)
+studentPor$mjob <- gsub("_", "", studentPor$mjob)
+studentMat$mjob <- gsub("_", "", studentMat$fjob)
+studentPor$mjob <- gsub("_", "", studentPor$fjob)
+
+
+columnas <- c("school","sex","age", "freetime","internet",
+                            "address","famsize",
+                            "pstatus","medu",
+                            "fedu","mjob",
+                            "fjob","reason",
+                            "nursery")
+columnas
+```
+
+#Unimos ambos conjuntos
+```{r}
+studentMatPor <- merge(studentMat,studentPor,
+                      by=columnas,
+                      all=FALSE, suffixes=c("mat","por"))
+kable(studentMatPor[1:5, 1:7])
+```
+
+##Mostramos edades
+```{r}
+edades <- studentMatPor$age
+kable(edades[1:5])
+edadesReves <- sort(edades, decreasing=TRUE)
+kable(edadesReves[1:5])
+
+```
+##Estudiamos sus notas 
+Los alumnos de matematicas con mayor tiempo libre son capaces de sacar mejores calificaciones.
+```{r}
+library(reshape)
+mediaFreeMat <- cast(studentMat, freetime~internet, mean, value=c("g3")) 
+mediaFreeMat
+```
+
+Los alumnos de portugués parecen sacarle menos partido a tener internet para mejorar sus calificaciones.
+Podrían necesitar alguna ayuda para poder enseñarles cómo sacarle mayor partido.
+```{r}
+
+mediaFreePor <- cast(studentPor, freetime~internet, mean, value=c("g3")) 
+mediaFreePor
+```
+#Representación con GGPLOT2
+Según las ausencias cómo varían las notas en cada conjunto y según la escuela.
+```{r}
+library(ggplot2)
+g1 <- ggplot(studentMat, aes(absences, g3))
+g1 + geom_point() + facet_grid(. ~ school)
+```
+
+Parece ser que hay demasiados alumnos que aunque no tienen ninguna falta tienen el suspenso en ambas asignaturas, podrían estar interesados en alguna plataforma online para fomentar tanto en casa como en la escuela el estudio de ambas materias y mejorar las calificaciones.
+```{r}
+g2 <- ggplot(studentPor, aes(absences, g3))
+g2 + geom_point() + facet_grid(. ~ school)
+```
+
+##Según salud y disponibilidad a internet
+Los resultados marcan que tener internet en el hogar no supone el aprobado o una buena nota asegurada, por lo que podríamos plantear a los padres de los alumnos charlas informativas.
+Además podríamos ayudar a los alumnos sin acceso facilitándoles conexión en las aulas para que sacar mejor provecho a sus capacidades. Ya que no implica tener malas notas sino que implica por lo que entendemos simplemente un mayor esfuerzo.
+El estado de salud damos por hecho que es irrelevante por la gráfica la cual muestra que todos los alumnos sacan el mismo rango de notas.
+```{r}
+g3 <- ggplot(studentMat, aes(health, g3))
+g3 + geom_point() + facet_grid(. ~ internet)
+g4 <- ggplot(studentPor, aes(health, g3))
+g4 + geom_point() + facet_grid(. ~ internet)
+```
